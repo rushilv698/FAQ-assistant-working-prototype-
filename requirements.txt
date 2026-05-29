@@ -10,3 +10,5 @@ sentence-transformers
 pypdf
 python-dotenv
 beautifulsoup4
+fastapi
+uvicorn[standard]

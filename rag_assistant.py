@@ -31,7 +31,9 @@ LOGGER = logging.getLogger(__name__)
 CHROMA_DIR = Path("./chroma_db")
 SOURCE_MANIFEST = CHROMA_DIR / "source_manifest.txt"
 REFRESH_DATE = date.today().isoformat()
-EDUCATIONAL_SOURCE_URL = "https://www.amfiindia.com/investor-corner/knowledge-center"
+EDUCATIONAL_SOURCE_URL = (
+    "https://www.amfiindia.com/investor/knowledge-center-info?zoneName=MythsAndFactsAboutMutualFunds"
+)
 FACTSHEET_SOURCE_URL = "https://www.hdfcfund.com/investor-services/fund-documents"
 PII_SOURCE_URL = "https://investor.sebi.gov.in/understanding_mf.html"
 ELSS_SOURCE_URL = "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct"

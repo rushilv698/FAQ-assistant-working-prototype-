@@ -10,7 +10,8 @@ A Streamlit + LangChain RAG assistant styled as a Groww extension prototype. It 
 - Refuses investment advice, portfolio recommendations, and return projections.
 - Blocks PAN, Aadhaar, account numbers, OTPs, emails, and phone numbers.
 - Persists embeddings locally in `./chroma_db` for faster later startup.
-- Provides a Groww-inspired Streamlit web UI with light and dark mode.
+- Provides a professional Groww-inspired HTML/React UI (`frontend/`) connected to the RAG API.
+- Optional legacy Streamlit UI (`app.py`) with light and dark mode.
 
 ## Requirements
 
@@ -49,7 +50,21 @@ If you already use Python 3.13 from python.org, you can install there instead:
 /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pip install -r requirements.txt
 ```
 
-## Run The Web App
+## Run The Professional Frontend (recommended)
+
+Serves the design handoff UI and RAG API on one port:
+
+```bash
+cd /Users/rushilv698/NextLeap/LIP4
+source .venv/bin/activate   # if using a venv
+uvicorn api:app --reload --port 8000
+```
+
+Open **http://localhost:8000** — landing → login → chat, with answers from `rag_assistant.py` via `POST /api/ask`.
+
+Frontend files live in `frontend/` (from `faq-assistant-working-prototype/project/FAQ Assistant.html`).
+
+## Run Streamlit (optional)
 
 Start the Streamlit server (with the same environment you used for install):
 
@@ -112,18 +127,21 @@ The TER/expense ratio for HDFC Top 100 Fund Direct Plan is 1.06%. Source: https:
 
 ## Frontend
 
-- The app is implemented in `app.py`.
-- UI assets live in `assets/` (for example `groww-app-icon-hd.png`).
-- It is a Groww-style prototype extension and is not supported by Groww.
+| Path | Role |
+|------|------|
+| `frontend/index.html` | Professional UI shell (React + Babel, from design handoff) |
+| `frontend/*.jsx` | Landing, login, chat screens |
+| `api.py` | FastAPI: `POST /api/ask` + static file server |
+| `app.py` | Optional Streamlit UI (older prototype) |
 
-### User flow
+- UI assets: `frontend/assets/groww-logo.png`
+- Not affiliated with or supported by Groww.
 
-1. **Landing** — Groww-style homepage with nav, live-style market ticker, hero (“Groww your wealth”), product/education/trust sections, and footer.
-2. **Login modal** — Click **Login/Sign up** or **Get Started** to open a split-panel modal (green promo panel + email/Google login), matching groww.in’s sign-in pattern.
-3. **MF Facts chat** — After **Continue** or **Continue with Google**, or via **Ask MF Facts**, users reach the RAG FAQ assistant with example questions and source-backed answers.
+### User flow (HTML UI)
 
-- Example query buttons route into the assistant screen.
-- The chat input calls the same backend used in smoke tests.
+1. **Landing** — Hero, trust row, popular HDFC example questions.
+2. **Login** — Mobile/Google prototype login (no real auth).
+3. **Chat** — Questions call `POST /api/ask`; answers use the same RAG chain as smoke tests, with source links parsed into the UI.
 
 ## Architecture
 
@@ -135,7 +153,8 @@ The TER/expense ratio for HDFC Top 100 Fund Direct Plan is 1.06%. Source: https:
   - rebuilds Chroma automatically when the approved source registry changes,
   - blocks PII, investment advice, and return projection questions before retrieval,
   - builds a Groq RetrievalQA chain using `llama-3.3-70b-versatile`.
-- `app.py`: Streamlit UI for question input and answer display.
+- `api.py`: FastAPI server exposing `/api/ask` and serving `frontend/`.
+- `app.py`: Optional Streamlit UI for question input and answer display.
 
 ## Supported Scope
 
@@ -150,7 +169,7 @@ The TER/expense ratio for HDFC Top 100 Fund Direct Plan is 1.06%. Source: https:
 
 - Ask factual questions about expense ratios, exit loads, SIP minimums, lock-ins, riskometers, benchmarks, and statements.
 - The assistant returns concise answers with source attribution.
-- The approved source registry contains 17 official HDFC Mutual Fund, AMFI, and SEBI URLs.
+- The approved source registry contains 33 official HDFC Mutual Fund, AMFI, and SEBI URLs (verified May 2026).
 
 ## Validation Note
 
