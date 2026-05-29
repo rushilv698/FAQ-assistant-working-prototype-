@@ -10,8 +10,10 @@ function Landing({ onAsk, onLogin, onExamples, onHome, theme, onToggleTheme }) {
 
   const popular = [
     "What is the expense ratio of HDFC Top 100 Fund direct plan?",
-    "What is the minimum SIP for HDFC Flexi Cap Fund?",
-    "What is the lock-in period for HDFC ELSS Tax Saver?",
+    "What is the lock-in period for SBI Long Term Equity Fund?",
+    "What is the exit load of Kotak Flexi Cap Fund?",
+    "What is the minimum SIP for Nippon India Large Cap Fund?",
+    "How do I download my capital gains statement for mutual funds?",
   ];
 
   return (

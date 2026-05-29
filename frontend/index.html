@@ -227,6 +227,23 @@
     background: var(--card); border-bottom: 1px solid var(--border); padding: 12px 24px 14px;
     display: flex; flex-direction: column; gap: 12px; flex-shrink: 0;
   }
+  /* AMC selector */
+  .amc-selector {
+    display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .amc-selector::-webkit-scrollbar { display: none; }
+  .amc-pill {
+    flex-shrink: 0; background: var(--chip-bg); color: var(--muted); font-size: 12.5px; font-weight: 600;
+    padding: 6px 14px; border-radius: 999px; white-space: nowrap; border: 1.5px solid transparent;
+    transition: background .15s, color .15s, border-color .15s;
+  }
+  .amc-pill:hover { background: var(--green-tint); color: var(--green-dark); }
+  .amc-pill-active {
+    background: var(--green-tint); color: var(--green-dark);
+    border-color: var(--green-border);
+  }
+
   .chips-row { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
   .chips-row::-webkit-scrollbar { height: 0; }
   .chip {

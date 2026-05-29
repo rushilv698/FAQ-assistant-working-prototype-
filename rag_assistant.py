@@ -1,4 +1,4 @@
-"""RAG assistant core for HDFC MF facts-only FAQ app."""
+"""RAG assistant core for multi-AMC MF facts-only FAQ app."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ TOP_100_SOURCE_URL = "https://www.hdfcfund.com/product-solutions/overview/hdfc-t
 FACTS_ONLY_PROMPT = PromptTemplate(
     input_variables=["context", "question"],
     template=(
-        "You are a facts-only FAQ assistant for HDFC Mutual Fund.\n"
+        "You are a facts-only FAQ assistant for mutual funds (HDFC, Kotak, SBI, Nippon India).\n"
         "Use only the retrieved context below.\n"
         "Rules:\n"
         "1) Never add facts that are not in context.\n"
@@ -50,7 +50,7 @@ FACTS_ONLY_PROMPT = PromptTemplate(
         "reply with a facts-only refusal and cite exactly one educational or factsheet source URL.\n"
         "3) If answer is unavailable in context, reply exactly: I couldn't find that information in the approved sources.\n"
         "4) Max 3 sentences total.\n"
-        "5) Include exactly one source URL from context.\n"
+        "5) Include exactly one source URL from context — prefer the specific scheme page URL over the AMC homepage.\n"
         "6) Include source refresh date: "
         + REFRESH_DATE
         + ".\n\n"
@@ -144,7 +144,7 @@ def _is_pdf_url(url: str) -> bool:
 def _load_single_source(url: str, source_type: str):
     if source_type == "pdf" or _is_pdf_url(url):
         return PyPDFLoader(url).load()
-    return WebBaseLoader(url).load()
+    return WebBaseLoader(url, requests_kwargs={"timeout": 15}).load()
 
 
 def load_and_split_documents() -> list:
@@ -161,7 +161,13 @@ def load_and_split_documents() -> list:
             continue
 
     splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-    return splitter.split_documents(docs)
+    chunks = splitter.split_documents(docs)
+    # Prepend the source URL to every chunk so the LLM always cites the specific page.
+    for chunk in chunks:
+        src = chunk.metadata.get("source", "")
+        if src:
+            chunk.page_content = f"[Source: {src}]\n{chunk.page_content}"
+    return chunks
 
 
 def _embedding_model():

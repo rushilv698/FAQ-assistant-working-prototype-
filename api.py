@@ -65,6 +65,12 @@ def _source_label(url: str) -> str:
     host = urlparse(url).netloc.lower()
     if "hdfcfund.com" in host:
         return "HDFC Mutual Fund — Official source"
+    if "kotakmf.com" in host:
+        return "Kotak Mutual Fund — Official source"
+    if "sbimf.com" in host:
+        return "SBI Mutual Fund — Official source"
+    if "nipponindiaim.com" in host or "nipponindiamf.com" in host:
+        return "Nippon India Mutual Fund — Official source"
     if "amfiindia.com" in host:
         return "AMFI — Investor education"
     if "sebi.gov.in" in host:
@@ -98,10 +104,14 @@ def parse_answer_text(raw: str) -> AskResponse:
         source = SourceOut(label=_source_label(source_url), url=source_url)
 
     body = text
-    if msg_type == "answer" and source_url:
+    if msg_type in ("answer", "error") and source_url:
+        # Remove the full sentence fragment that contains the source URL (e.g. "For more info, visit <url>")
+        body = re.sub(r'[^.]*' + re.escape(source_url) + r'[^.]*\.?', '', body)
         body = body.replace(f"Source: {source_url}", "").replace(f"Source:{source_url}", "")
         body = DATE_PATTERN.sub("", body)
-        body = re.sub(r"\s+", " ", body).strip().rstrip(".")
+        # strip trailing "(source refresh date: ...)" remnants
+        body = re.sub(r"\(source refresh date:[^)]*\)", "", body)
+        body = re.sub(r"\s+", " ", body).strip().rstrip(".").rstrip(",").rstrip("(").strip()
         body = re.sub(r"\.\s*\.+", ".", body)
 
     heading = None
@@ -133,6 +143,59 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/api/amcs")
+def list_amcs():
+    return {
+        "amcs": [
+            {
+                "id": "ALL",
+                "label": "All AMCs",
+                "schemes": [],
+            },
+            {
+                "id": "HDFC",
+                "label": "HDFC Mutual Fund",
+                "schemes": [
+                    "HDFC Top 100 Fund",
+                    "HDFC Flexi Cap Fund",
+                    "HDFC ELSS Tax Saver",
+                    "HDFC Balanced Advantage Fund",
+                ],
+            },
+            {
+                "id": "Kotak",
+                "label": "Kotak Mutual Fund",
+                "schemes": [
+                    "Kotak Flexi Cap Fund",
+                    "Kotak ELSS Tax Saver Fund",
+                    "Kotak Bluechip Fund",
+                    "Kotak Balanced Advantage Fund",
+                ],
+            },
+            {
+                "id": "SBI",
+                "label": "SBI Mutual Fund",
+                "schemes": [
+                    "SBI Bluechip Fund",
+                    "SBI Long Term Equity Fund",
+                    "SBI Flexicap Fund",
+                    "SBI Balanced Advantage Fund",
+                ],
+            },
+            {
+                "id": "Nippon",
+                "label": "Nippon India MF",
+                "schemes": [
+                    "Nippon India Large Cap Fund",
+                    "Nippon India Tax Saver ELSS",
+                    "Nippon India Flexi Cap Fund",
+                    "Nippon India Balanced Advantage Fund",
+                ],
+            },
+        ]
+    }
 
 
 @app.get("/api/health")
