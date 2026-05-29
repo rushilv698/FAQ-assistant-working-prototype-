@@ -1,4 +1,4 @@
-# Groww-Style MF Facts-Only FAQ Prototype
+# Groww-Style MF Facts-Only FAQ Assistant Prototype
 
 A Streamlit + LangChain RAG assistant styled as a Groww extension prototype. It answers factual questions about selected HDFC Mutual Fund schemes using only approved public sources. This prototype is not supported by Groww.
 
