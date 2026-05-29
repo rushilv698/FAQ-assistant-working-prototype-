@@ -1,41 +1,81 @@
-# Groww-Style MF Facts-Only FAQ Assistant Prototype
+# Groww-Style Multi-AMC MF Facts-Only FAQ Assistant
 
-A Streamlit + LangChain RAG assistant styled as a Groww extension prototype. It answers factual questions about selected HDFC Mutual Fund schemes using only approved public sources. This prototype is not supported by Groww.
+A RAG-powered FAQ assistant styled as a Groww prototype. Answers factual questions about mutual fund schemes from HDFC, Kotak, SBI, and Nippon India using only approved official sources — with source attribution in every answer.
+
+> **Prototype only. Not affiliated with or supported by Groww.**
+
+---
 
 ## What It Does
 
-- Answers facts about selected HDFC Mutual Fund schemes.
-- Uses only official HDFC Mutual Fund, AMFI, and SEBI sources.
-- Includes one source URL in each tested/guarded answer.
+- Answers factual questions about MF schemes across four AMCs: **HDFC, Kotak, SBI, Nippon India**.
+- Sources data only from official AMC, AMFI, and SEBI pages (58 approved URLs).
+- Returns every answer with a specific source page link (not just the AMC homepage).
 - Refuses investment advice, portfolio recommendations, and return projections.
 - Blocks PAN, Aadhaar, account numbers, OTPs, emails, and phone numbers.
-- Persists embeddings locally in `./chroma_db` for faster later startup.
-- Provides a professional Groww-inspired HTML/React UI (`frontend/`) connected to the RAG API.
-- Optional legacy Streamlit UI (`app.py`) with light and dark mode.
+- Persists embeddings locally in `./chroma_db` — fast restarts after first build.
+- Groww-inspired React UI served directly by the FastAPI backend on a single port.
+
+---
+
+## Architecture
+
+```
+Browser  (http://localhost:8002)
+  └── frontend/index.html          ← React shell (Babel in-browser, no build step)
+        ├── screens.jsx            ← Landing + Login screens
+        ├── chat.jsx               ← Chat UI, AMC selector, topic chips
+        ├── icons.jsx              ← SVG icons
+        └── app.jsx                ← Client-side router
+              │
+              │  POST /api/ask     ← ask a question
+              │  GET  /api/amcs    ← list supported AMCs and schemes
+              │  GET  /api/health  ← health check
+              ▼
+        api.py  (FastAPI — serves API + static frontend)
+              ▼
+        rag_assistant.py
+              ├── source_list.py          58 approved URLs
+              ├── WebBaseLoader / PyPDFLoader
+              ├── ChromaDB  ./chroma_db   local vector store
+              ├── all-MiniLM-L6-v2        HuggingFace embeddings
+              └── llama-3.3-70b-versatile via Groq API
+```
+
+---
+
+## Supported Schemes
+
+| AMC | Schemes |
+|-----|---------|
+| **HDFC** | Top 100 Fund, Flexi Cap Fund, ELSS Tax Saver, Balanced Advantage Fund |
+| **Kotak** | Flexi Cap Fund, ELSS Tax Saver Fund, Bluechip Fund, Balanced Advantage Fund |
+| **SBI** | Bluechip Fund, Long Term Equity Fund, Flexicap Fund, Balanced Advantage Fund |
+| **Nippon India** | Large Cap Fund, Tax Saver ELSS, Flexi Cap Fund, Balanced Advantage Fund |
+
+---
 
 ## Requirements
 
 - Python 3.10+
 - Groq API key in `.env`
-- Internet access on first run for source loading and embedding model download
+- Internet access on first run (source loading + embedding model download)
 
-## Environment
+---
 
-Create or update `.env` in this folder:
+## Environment Setup
 
-```bash
-GROQ_LIP4=your_groq_key_here
-```
-
-The backend also supports `GROQ_API_KEY` if you prefer that name:
+Create `.env` in the project folder:
 
 ```bash
 GROQ_API_KEY=your_groq_key_here
 ```
 
-## Install
+Also accepted: `GROQ_LIP4` as the key name.
 
-From the project folder, use a virtual environment so `pip` and `streamlit` share the same Python:
+---
+
+## Install
 
 ```bash
 cd /Users/rushilv698/NextLeap/LIP4
@@ -44,152 +84,165 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-If you already use Python 3.13 from python.org, you can install there instead:
+Or with the system Python 3.13:
 
 ```bash
 /Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m pip install -r requirements.txt
 ```
 
-## Run The Professional Frontend (recommended)
+---
 
-Serves the design handoff UI and RAG API on one port:
-
-```bash
-cd /Users/rushilv698/NextLeap/LIP4
-source .venv/bin/activate   # if using a venv
-uvicorn api:app --reload --port 8000
-```
-
-Open **http://localhost:8000** — landing → login → chat, with answers from `rag_assistant.py` via `POST /api/ask`.
-
-Frontend files live in `frontend/` (from `faq-assistant-working-prototype/project/FAQ Assistant.html`).
-
-## Run Streamlit (optional)
-
-Start the Streamlit server (with the same environment you used for install):
+## Run
 
 ```bash
 cd /Users/rushilv698/NextLeap/LIP4
-source .venv/bin/activate   # if using a venv
-streamlit run app.py
+python3 -m uvicorn api:app --reload --port 8002
 ```
 
-Or with the python.org 3.13 interpreter:
+Then open **http://localhost:8002** — landing → login → chat.
+
+> Ports 8000 and 8001 may be occupied by other projects on this machine; use 8002 or higher if needed.
+
+---
+
+## First-Run Behaviour
+
+On first launch the server will:
+
+1. Load all 58 approved URLs (`source_list.py`).
+2. Split each page into chunks and prepend `[Source: url]` to each chunk.
+3. Download `all-MiniLM-L6-v2` embeddings (cached after first download).
+4. Build and persist a ChromaDB index in `./chroma_db`.
+5. Start answering questions via Groq `llama-3.3-70b-versatile`.
+
+Subsequent launches reuse `./chroma_db` automatically. If `source_list.py` changes, the index rebuilds on the next request.
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/ask` | Ask a question; returns `type`, `body`, `source`, `last_updated` |
+| `GET` | `/api/amcs` | List supported AMCs and their scheme names |
+| `GET` | `/api/health` | Health check with source count |
+| `GET` | `/` | Serves the React frontend |
+
+### Example — ask a question
 
 ```bash
-/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 -m streamlit run app.py
+curl -X POST http://localhost:8002/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the exit load of HDFC Flexi Cap Fund?"}'
 ```
 
-Then open the local URL Streamlit prints, usually:
-
-```text
-http://localhost:8501
+Response:
+```json
+{
+  "type": "answer",
+  "body": "The exit load of HDFC Flexi Cap Fund is 1.00% if Units are redeemed / switched-out within 1 year from the date of allotment...",
+  "source": {
+    "label": "HDFC Mutual Fund — Official source",
+    "url": "https://www.hdfcfund.com/explore/mutual-funds/hdfc-flexi-cap-fund/direct"
+  },
+  "last_updated": "2026-05-30"
+}
 ```
 
-If port `8501` is already busy, run on another port:
+---
+
+## Approved Sources (58 URLs)
+
+| Category | Count |
+|----------|-------|
+| HDFC Mutual Fund pages | 25 |
+| Kotak Mutual Fund pages | 6 |
+| SBI Mutual Fund pages | 6 |
+| Nippon India MF pages (`mf.nipponindiaim.com`) | 6 |
+| AMFI investor education pages | 8 |
+| SEBI investor education pages | 7 |
+
+Full list: [`source_list.py`](source_list.py) / [`source_list.csv`](source_list.csv)
+
+---
+
+## Project Structure
+
+```
+LIP4/
+├── api.py                  FastAPI backend + static file server
+├── rag_assistant.py        RAG core (load, chunk, embed, retrieve, answer)
+├── source_list.py          Approved URL registry (58 sources)
+├── source_list.csv         Same registry as CSV (with AMC column)
+├── requirements.txt        Python dependencies (no Streamlit)
+├── sample_qa.md            Representative Q&A examples
+├── .env                    Groq API key (gitignored)
+├── chroma_db/              Persisted ChromaDB vector store
+└── frontend/
+    ├── index.html          App shell + all CSS
+    ├── app.jsx             Client router
+    ├── screens.jsx         Landing + Login screens
+    ├── chat.jsx            Chat screen, AMC selector, chips
+    ├── icons.jsx           SVG icon components
+    └── assets/
+        └── groww-logo.png
+```
+
+---
+
+## Smoke Test
+
+Confirm the backend answers correctly without opening the UI:
 
 ```bash
-streamlit run app.py --server.port 8502
+curl -s -X POST http://localhost:8002/api/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "What is the lock-in period for HDFC ELSS Tax Saver?"}' \
+  | python3 -m json.tool
 ```
 
-## First Run Behavior
-
-On first launch, the app will:
-
-1. Load approved web sources from `source_list.py`.
-2. Split documents into chunks.
-3. Download/use `all-MiniLM-L6-v2` embeddings.
-4. Build and persist the Chroma index in `./chroma_db`.
-5. Start answering questions through Groq-hosted `llama-3.3-70b-versatile`.
-
-Later launches reuse `./chroma_db` unless the source registry changes.
-
-## Backend Smoke Test
-
-Run this to confirm the backend works without opening the UI:
-
-```bash
-cd /Users/rushilv698/NextLeap/LIP4
-/Library/Frameworks/Python.framework/Versions/3.13/bin/python3 - <<'PY'
-from rag_assistant import answer_question, build_qa_chain
-
-qa = build_qa_chain()
-question = "What is the expense ratio of HDFC Top 100 Fund direct plan?"
-print(answer_question(qa, question))
-PY
+Expected:
+```json
+{
+  "type": "answer",
+  "body": "HDFC ELSS Tax Saver has a lock-in period of three years.",
+  "source": {
+    "label": "HDFC Mutual Fund — Official source",
+    "url": "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct"
+  },
+  "last_updated": "2026-05-30"
+}
 ```
 
-Expected answer shape:
+---
 
-```text
-The TER/expense ratio for HDFC Top 100 Fund Direct Plan is 1.06%. Source: https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct. Last updated from sources: YYYY-MM-DD.
+## User Flow
+
+```
+Landing Page  →  Login (prototype, no real auth)  →  Chat
+                                                        ├── Select AMC pill (All / HDFC / Kotak / SBI / Nippon)
+                                                        ├── Click topic chip (Expense Ratio / Exit Load / …)
+                                                        ├── Pick example question or type your own
+                                                        └── Receive answer + source citation card
 ```
 
-## Frontend
-
-| Path | Role |
-|------|------|
-| `frontend/index.html` | Professional UI shell (React + Babel, from design handoff) |
-| `frontend/*.jsx` | Landing, login, chat screens |
-| `api.py` | FastAPI: `POST /api/ask` + static file server |
-| `app.py` | Optional Streamlit UI (older prototype) |
-
-- UI assets: `frontend/assets/groww-logo.png`
-- Not affiliated with or supported by Groww.
-
-### User flow (HTML UI)
-
-1. **Landing** — Hero, trust row, popular HDFC example questions.
-2. **Login** — Mobile/Google prototype login (no real auth).
-3. **Chat** — Questions call `POST /api/ask`; answers use the same RAG chain as smoke tests, with source links parsed into the UI.
-
-## Architecture
-
-- `source_list.py`: single approved source registry.
-- `rag_assistant.py`:
-  - loads/splits documents from approved URLs (`WebBaseLoader`, `PyPDFLoader`),
-  - embeds with `all-MiniLM-L6-v2`,
-  - persists vectors in `./chroma_db` (ChromaDB),
-  - rebuilds Chroma automatically when the approved source registry changes,
-  - blocks PII, investment advice, and return projection questions before retrieval,
-  - builds a Groq RetrievalQA chain using `llama-3.3-70b-versatile`.
-- `api.py`: FastAPI server exposing `/api/ask` and serving `frontend/`.
-- `app.py`: Optional Streamlit UI for question input and answer display.
-
-## Supported Scope
-
-- HDFC Top 100 Fund / HDFC Large Cap Fund page
-- HDFC Flexi Cap Fund
-- HDFC ELSS Tax Saver Fund
-- HDFC Balanced Advantage Fund
-- Investor service questions, including capital gains statement guidance
-- AMFI/SEBI educational and regulatory material
-
-## Usage
-
-- Ask factual questions about expense ratios, exit loads, SIP minimums, lock-ins, riskometers, benchmarks, and statements.
-- The assistant returns concise answers with source attribution.
-- The approved source registry contains 33 official HDFC Mutual Fund, AMFI, and SEBI URLs (verified May 2026).
-
-## Validation Note
-
-- Query validated: `What is the expense ratio of HDFC Top 100 Fund direct plan?`
-- Verified against official HDFC page payload on May 29, 2026.
-- Current published value found on source page: `terDirecct: 1.06` (direct plan TER/expense ratio).
-- Source: https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct
-
-## Troubleshooting
-
-- If the first run is slow, wait for source ingestion and embedding setup to finish.
-- If Chroma appears stale after changing sources, delete `./chroma_db` and rerun the app.
-- If `streamlit` is not found, confirm dependencies were installed in the same Python environment used to run the app.
-- If you see `ModuleNotFoundError: langchain_core`, reinstall with `pip install -r requirements.txt` in the active venv (Homebrew `python3` and python.org 3.13 are different installs).
-- If Groq calls fail, confirm `.env` contains `GROQ_LIP4` or `GROQ_API_KEY`.
-- If port `8501` is in use, run `streamlit run app.py --server.port 8502`.
+---
 
 ## Limitations
 
-- Uses only content available in the approved source registry.
-- Refuses investment advice and return projections.
-- Does not accept PAN, Aadhaar, account numbers, OTPs, emails, or phone numbers.
-- If source pages change structure or become unavailable, retrieval quality may degrade.
+- Uses only content available in the 58 approved sources.
+- AMC scheme pages that render entirely with JavaScript may return limited data (SPA pages are scraped as static HTML).
+- Refuses investment advice, return projections, and PII.
+- Source page content changes are picked up on the next `chroma_db` rebuild.
+
+---
+
+## Troubleshooting
+
+| Problem | Fix |
+|---------|-----|
+| Slow first startup | Wait for source ingestion and embedding build (~2–3 min for 58 sources) |
+| Stale answers after adding sources | Delete `./chroma_db` and restart — it rebuilds automatically |
+| `ModuleNotFoundError: langchain_core` | Run `pip install -r requirements.txt` in the same Python env used to start the server |
+| Groq calls fail | Check `.env` contains `GROQ_API_KEY` or `GROQ_LIP4` |
+| Port already in use | Change `--port 8002` to any free port |
