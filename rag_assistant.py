@@ -184,15 +184,32 @@ def create_vectorstore(chunks: Iterable):
     return vectorstore
 
 
+# def get_retriever():
+#     if CHROMA_DIR.exists() and any(CHROMA_DIR.iterdir()) and _source_manifest_matches():
+#         vectorstore = Chroma(
+#             persist_directory=str(CHROMA_DIR),
+#             embedding_function=_embedding_model(),
+#         )
+#     else:
+#         chunks = load_and_split_documents()
+#         vectorstore = create_vectorstore(chunks)
+#     return vectorstore.as_retriever(search_kwargs={"k": 4})
+
 def get_retriever():
+    print("CHROMA EXISTS:", CHROMA_DIR.exists())
+    print("MANIFEST MATCH:", _source_manifest_matches())
+
     if CHROMA_DIR.exists() and any(CHROMA_DIR.iterdir()) and _source_manifest_matches():
+        print("LOADING EXISTING CHROMA")
         vectorstore = Chroma(
             persist_directory=str(CHROMA_DIR),
             embedding_function=_embedding_model(),
         )
     else:
+        print("REBUILDING CHROMA")
         chunks = load_and_split_documents()
         vectorstore = create_vectorstore(chunks)
+
     return vectorstore.as_retriever(search_kwargs={"k": 4})
 
 
