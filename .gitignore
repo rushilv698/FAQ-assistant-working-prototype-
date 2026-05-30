@@ -2,4 +2,6 @@
 .DS_Store
 __pycache__/
 .pytest_cache/
+# ChromaDB vector store — rebuilt automatically on first run, no need to track
+chroma_db/
 
