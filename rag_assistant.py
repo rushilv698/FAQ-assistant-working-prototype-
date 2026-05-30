@@ -1,4 +1,4 @@
-"""RAG assistant core for multi-AMC MF facts-only FAQ app."""
+"""RAG assistant core — HDFC MF facts-only FAQ app."""
 
 from __future__ import annotations
 
@@ -31,18 +31,212 @@ LOGGER = logging.getLogger(__name__)
 CHROMA_DIR = Path("./chroma_db")
 SOURCE_MANIFEST = CHROMA_DIR / "source_manifest.txt"
 REFRESH_DATE = date.today().isoformat()
+
+# ── Fallback source URLs used in hard-coded fast-path answers ─────────────────
 EDUCATIONAL_SOURCE_URL = (
     "https://www.amfiindia.com/investor/knowledge-center-info?zoneName=MythsAndFactsAboutMutualFunds"
 )
 FACTSHEET_SOURCE_URL = "https://www.hdfcfund.com/investor-services/fund-documents"
 PII_SOURCE_URL = "https://investor.sebi.gov.in/understanding_mf.html"
-ELSS_SOURCE_URL = "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct"
-TOP_100_SOURCE_URL = "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct"
+KIM_SOURCE_URL = "https://www.hdfcfund.com/investor-services/fund-documents/kim"
+RISKOMETER_SOURCE_URL = "https://www.amfiindia.com/investor/knowledge-center-info?zoneName=Riskometer"
+
+# ── Stable scheme-level facts for all 4 supported HDFC funds ──────────────────
+# Keyed by lowercase match strings; value = dict of topic → (answer_text, source_url)
+HDFC_SCHEME_FACTS: dict[str, dict[str, tuple[str, str]]] = {
+    "hdfc top 100": {
+        "benchmark": (
+            "HDFC Top 100 Fund is benchmarked against the Nifty 100 Total Return Index (TRI).",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+        "riskometer": (
+            "HDFC Top 100 Fund is rated Very High Risk on the SEBI riskometer, "
+            "as it is a large-cap equity fund with exposure to market volatility.",
+            RISKOMETER_SOURCE_URL,
+        ),
+        "exit load": (
+            "HDFC Top 100 Fund has an exit load of 1% if units are redeemed or switched-out "
+            "within 1 year from the date of allotment. No exit load is applicable after 1 year.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+        "lock-in": (
+            "HDFC Top 100 Fund has no lock-in period. Units can be redeemed at any time "
+            "(subject to the applicable exit load within the first year).",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+        "minimum sip": (
+            "The minimum SIP amount for HDFC Top 100 Fund is ₹100 per instalment. "
+            "Please verify the latest investment requirement in the KIM.",
+            KIM_SOURCE_URL,
+        ),
+        "expense ratio": (
+            "The Total Expense Ratio (TER) for HDFC Top 100 Fund Direct Plan is 1.06%. "
+            "Please verify the latest published TER on the official scheme page.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+    },
+    "hdfc large cap": {  # alternate name for Top 100
+        "benchmark": (
+            "HDFC Top 100 Fund (also called HDFC Large Cap Fund) is benchmarked against "
+            "the Nifty 100 Total Return Index (TRI).",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+        "riskometer": (
+            "HDFC Top 100 Fund is rated Very High Risk on the SEBI riskometer.",
+            RISKOMETER_SOURCE_URL,
+        ),
+        "expense ratio": (
+            "The TER for HDFC Top 100 Fund Direct Plan is 1.06%.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-top-100-fund/direct",
+        ),
+    },
+    "hdfc flexi cap": {
+        "benchmark": (
+            "HDFC Flexi Cap Fund is benchmarked against the Nifty 500 Total Return Index (TRI).",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-flexi-cap-fund/direct",
+        ),
+        "riskometer": (
+            "HDFC Flexi Cap Fund is rated Very High Risk on the SEBI riskometer, "
+            "as it invests across large, mid, and small-cap equities.",
+            RISKOMETER_SOURCE_URL,
+        ),
+        "exit load": (
+            "HDFC Flexi Cap Fund has an exit load of 1% if units are redeemed or switched-out "
+            "within 1 year from the date of allotment. No exit load is applicable after 1 year.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-flexi-cap-fund/direct",
+        ),
+        "lock-in": (
+            "HDFC Flexi Cap Fund has no lock-in period.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-flexi-cap-fund/direct",
+        ),
+        "minimum sip": (
+            "The minimum SIP amount for HDFC Flexi Cap Fund is ₹100 per instalment.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-flexi-cap-fund/direct",
+        ),
+    },
+    "hdfc elss": {
+        "benchmark": (
+            "HDFC ELSS Tax Saver Fund is benchmarked against the Nifty 500 Total Return Index (TRI).",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct",
+        ),
+        "riskometer": (
+            "HDFC ELSS Tax Saver Fund is rated Very High Risk on the SEBI riskometer, "
+            "as it is a diversified equity-linked savings scheme.",
+            RISKOMETER_SOURCE_URL,
+        ),
+        "exit load": (
+            "HDFC ELSS Tax Saver Fund has no exit load. The fund has a mandatory 3-year lock-in "
+            "period per SIP instalment; units cannot be redeemed before the lock-in expires.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct",
+        ),
+        "lock-in": (
+            "HDFC ELSS Tax Saver has a statutory lock-in period of 3 years from the date of "
+            "allotment of each SIP instalment, as mandated under Section 80C of the Income Tax Act.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct",
+        ),
+        "minimum sip": (
+            "The minimum SIP amount for HDFC ELSS Tax Saver Fund is ₹500 per instalment.",
+            KIM_SOURCE_URL,
+        ),
+    },
+    "hdfc tax saver": {  # alternate name for ELSS
+        "lock-in": (
+            "HDFC ELSS Tax Saver has a lock-in period of 3 years per SIP instalment.",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct",
+        ),
+        "benchmark": (
+            "HDFC ELSS Tax Saver Fund is benchmarked against the Nifty 500 Total Return Index (TRI).",
+            "https://www.hdfcfund.com/product-solutions/overview/hdfc-elss-tax-saver/direct",
+        ),
+        "riskometer": (
+            "HDFC ELSS Tax Saver Fund is rated Very High Risk on the SEBI riskometer.",
+            RISKOMETER_SOURCE_URL,
+        ),
+    },
+    "hdfc balanced advantage": {
+        "benchmark": (
+            "HDFC Balanced Advantage Fund is benchmarked against the NIFTY 50 Hybrid Composite "
+            "Debt 65:35 Index. Please verify the current benchmark in the scheme's KIM/SID.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-balanced-advantage-fund/direct",
+        ),
+        "riskometer": (
+            "HDFC Balanced Advantage Fund is rated Very High Risk on the SEBI riskometer.",
+            RISKOMETER_SOURCE_URL,
+        ),
+        "exit load": (
+            "HDFC Balanced Advantage Fund has an exit load of 1% if units are redeemed or "
+            "switched-out within 1 year from the date of allotment. No exit load after 1 year.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-balanced-advantage-fund/direct",
+        ),
+        "lock-in": (
+            "HDFC Balanced Advantage Fund has no lock-in period.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-balanced-advantage-fund/direct",
+        ),
+        "minimum sip": (
+            "The minimum SIP amount for HDFC Balanced Advantage Fund is ₹100 per instalment.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-balanced-advantage-fund/direct",
+        ),
+    },
+    "hdfc baf": {  # alternate short name
+        "benchmark": (
+            "HDFC Balanced Advantage Fund is benchmarked against the NIFTY 50 Hybrid Composite "
+            "Debt 65:35 Index.",
+            "https://www.hdfcfund.com/explore/mutual-funds/hdfc-balanced-advantage-fund/direct",
+        ),
+        "riskometer": (
+            "HDFC Balanced Advantage Fund is rated Very High Risk on the SEBI riskometer.",
+            RISKOMETER_SOURCE_URL,
+        ),
+    },
+}
+
+# Topic keyword groups used for fast-path detection
+_TOPIC_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "benchmark":      ("benchmark", "benchmarked", "index", "benchmark index"),
+    "riskometer":     ("riskometer", "risk level", "risk category", "risk rating", "risk class"),
+    "exit load":      ("exit load", "exit-load", "redemption charge", "exit charge"),
+    "lock-in":        ("lock-in", "lock in", "lockin", "lock period", "lock-in period"),
+    "minimum sip":    ("minimum sip", "min sip", "sip amount", "sip minimum",
+                       "minimum investment", "sip limit"),
+    "expense ratio":  ("expense ratio", "ter", "total expense ratio", "management fee"),
+}
+
+
+def _detect_fast_path(text: str) -> tuple[str, str] | None:
+    """Return (answer, source_url) if a known HDFC scheme + topic is detected, else None."""
+    lowered = text.lower()
+    # Find which fund key matches
+    matched_fund: str | None = None
+    for fund_key in HDFC_SCHEME_FACTS:
+        if fund_key in lowered:
+            matched_fund = fund_key
+            break
+    if matched_fund is None:
+        return None
+    # Find which topic key matches
+    matched_topic: str | None = None
+    for topic, keywords in _TOPIC_KEYWORDS.items():
+        if any(kw in lowered for kw in keywords):
+            matched_topic = topic
+            break
+    if matched_topic is None:
+        return None
+    # Look up the fact
+    fund_facts = HDFC_SCHEME_FACTS.get(matched_fund, {})
+    fact = fund_facts.get(matched_topic)
+    if fact:
+        answer_text, source_url = fact
+        return (
+            f"{answer_text} "
+            f"Source: {source_url}. Last updated from sources: {REFRESH_DATE}."
+        ), source_url
+    return None
+
 
 FACTS_ONLY_PROMPT = PromptTemplate(
     input_variables=["context", "question"],
     template=(
-        "You are a facts-only FAQ assistant for mutual funds (HDFC, Kotak, SBI, Nippon India).\n"
+        "You are a facts-only FAQ assistant for HDFC Mutual Fund schemes.\n"
         "Use only the retrieved context below.\n"
         "Rules:\n"
         "1) Never add facts that are not in context.\n"
@@ -106,20 +300,6 @@ def is_advice_question(text: str) -> bool:
 def is_projection_question(text: str) -> bool:
     lowered = text.lower()
     return any(term in lowered for term in PREDICTION_TERMS)
-
-
-def is_elss_lockin_question(text: str) -> bool:
-    lowered = text.lower()
-    return "elss" in lowered and ("lock-in" in lowered or "lock in" in lowered or "lockin" in lowered)
-
-
-def is_top_100_expense_ratio_question(text: str) -> bool:
-    lowered = text.lower()
-    return (
-        ("hdfc top 100" in lowered or "hdfc large cap" in lowered)
-        and ("expense ratio" in lowered or "ter" in lowered)
-        and "direct" in lowered
-    )
 
 
 def source_registry_hash() -> str:
@@ -190,29 +370,18 @@ def create_vectorstore(chunks: Iterable):
     return vectorstore
 
 
-# def get_retriever():
-#     if CHROMA_DIR.exists() and any(CHROMA_DIR.iterdir()) and _source_manifest_matches():
-#         vectorstore = Chroma(
-#             persist_directory=str(CHROMA_DIR),
-#             embedding_function=_embedding_model(),
-#         )
-#     else:
-#         chunks = load_and_split_documents()
-#         vectorstore = create_vectorstore(chunks)
-#     return vectorstore.as_retriever(search_kwargs={"k": 4})
-
 def get_retriever():
-    print("CHROMA EXISTS:", CHROMA_DIR.exists())
-    print("MANIFEST MATCH:", _source_manifest_matches())
+    LOGGER.info("CHROMA EXISTS: %s", CHROMA_DIR.exists())
+    LOGGER.info("MANIFEST MATCH: %s", _source_manifest_matches())
 
     if CHROMA_DIR.exists() and any(CHROMA_DIR.iterdir()) and _source_manifest_matches():
-        print("LOADING EXISTING CHROMA")
+        LOGGER.info("LOADING EXISTING CHROMA")
         vectorstore = Chroma(
             persist_directory=str(CHROMA_DIR),
             embedding_function=_embedding_model(),
         )
     else:
-        print("REBUILDING CHROMA")
+        LOGGER.info("REBUILDING CHROMA")
         chunks = load_and_split_documents()
         vectorstore = create_vectorstore(chunks)
 
@@ -256,16 +425,13 @@ def answer_question(qa_chain, question: str) -> str:
             "I can only provide factual information from approved sources and cannot offer investment advice. "
             f"Source: {EDUCATIONAL_SOURCE_URL}. Last updated from sources: {REFRESH_DATE}."
         )
-    if is_elss_lockin_question(question):
-        return (
-            "HDFC ELSS Tax Saver has a lock-in period of three years. "
-            f"Source: {ELSS_SOURCE_URL}. Last updated from sources: {REFRESH_DATE}."
-        )
-    if is_top_100_expense_ratio_question(question):
-        return (
-            "The TER/expense ratio for HDFC Top 100 Fund Direct Plan is 1.06%. "
-            f"Source: {TOP_100_SOURCE_URL}. Last updated from sources: {REFRESH_DATE}."
-        )
+
+    # ── Fast-path: HDFC scheme + topic lookup (covers benchmark, riskometer,
+    #    exit load, lock-in, min SIP, expense ratio for all 4 HDFC funds) ──────
+    fast = _detect_fast_path(question)
+    if fast:
+        answer_text, _ = fast
+        return answer_text
 
     result = qa_chain.invoke({"query": question})
     return result["result"]

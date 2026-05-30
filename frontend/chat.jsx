@@ -10,7 +10,7 @@ const CHIPS = [
   "Capital Gains Statement",
 ];
 
-// Per-chip question templates; fund is substituted for all except service questions.
+// Per-chip question templates; fund name is substituted.
 const CHIP_TEMPLATES = {
   "Expense Ratio":           (fund) => `What is the expense ratio of ${fund} direct plan?`,
   "Exit Load":               (fund) => `What is the exit load of ${fund}?`,
@@ -21,71 +21,71 @@ const CHIP_TEMPLATES = {
   "Capital Gains Statement": ()     => "How do I download my capital gains statement for mutual funds?",
 };
 
-// Per-AMC sample questions shown in the empty state and on landing.
-const AMC_DATA = {
+// HDFC scheme definitions — one entry per scheme + an "All" view.
+const SCHEME_DATA = {
   ALL: {
-    label: "All AMCs",
+    label: "All Schemes",
     chipFund: "HDFC Flexi Cap Fund",
     examples: [
       "What is the expense ratio of HDFC Top 100 Fund direct plan?",
+      "What is the benchmark index of HDFC Flexi Cap Fund?",
       "What is the lock-in period for HDFC ELSS Tax Saver?",
-      "What is the exit load of SBI Bluechip Fund?",
-      "What is the minimum SIP for Kotak Flexi Cap Fund?",
-      "What is the benchmark of Nippon India Large Cap Fund?",
+      "What is the riskometer level of HDFC Balanced Advantage Fund?",
+      "What is the exit load of HDFC Top 100 Fund?",
       "How do I download my capital gains statement for mutual funds?",
     ],
   },
-  HDFC: {
-    label: "HDFC",
-    chipFund: "HDFC Flexi Cap Fund",
+  TOP100: {
+    label: "Top 100",
+    chipFund: "HDFC Top 100 Fund",
     examples: [
       "What is the expense ratio of HDFC Top 100 Fund direct plan?",
+      "What is the benchmark index of HDFC Top 100 Fund?",
+      "What is the riskometer level of HDFC Top 100 Fund?",
+      "What is the exit load of HDFC Top 100 Fund?",
+      "What is the minimum SIP amount for HDFC Top 100 Fund?",
+      "Is there a lock-in period for HDFC Top 100 Fund?",
+    ],
+  },
+  FLEXICAP: {
+    label: "Flexi Cap",
+    chipFund: "HDFC Flexi Cap Fund",
+    examples: [
+      "What is the benchmark index of HDFC Flexi Cap Fund?",
+      "What is the exit load of HDFC Flexi Cap Fund?",
+      "What is the riskometer level of HDFC Flexi Cap Fund?",
+      "What is the minimum SIP amount for HDFC Flexi Cap Fund?",
+      "What is the expense ratio of HDFC Flexi Cap Fund direct plan?",
+      "Is there a lock-in period for HDFC Flexi Cap Fund?",
+    ],
+  },
+  ELSS: {
+    label: "ELSS",
+    chipFund: "HDFC ELSS Tax Saver",
+    examples: [
       "What is the lock-in period for HDFC ELSS Tax Saver?",
-      "What is the exit load of HDFC Flexi Cap Fund direct plan?",
-      "What is the minimum SIP for HDFC Balanced Advantage Fund?",
-      "What is the benchmark of HDFC Flexi Cap Fund?",
-      "How do I download my capital gains statement for mutual funds?",
+      "What is the benchmark index of HDFC ELSS Tax Saver?",
+      "What is the riskometer level of HDFC ELSS Tax Saver?",
+      "What is the exit load of HDFC ELSS Tax Saver?",
+      "What is the minimum SIP amount for HDFC ELSS Tax Saver?",
+      "What are the tax benefits of investing in HDFC ELSS Tax Saver?",
     ],
   },
-  Kotak: {
-    label: "Kotak",
-    chipFund: "Kotak Flexi Cap Fund",
+  BAF: {
+    label: "Balanced Adv.",
+    chipFund: "HDFC Balanced Advantage Fund",
     examples: [
-      "What is the expense ratio of Kotak Flexi Cap Fund direct plan?",
-      "What is the lock-in period for Kotak ELSS Tax Saver Fund?",
-      "What is the exit load of Kotak Bluechip Fund?",
-      "What is the minimum SIP for Kotak Balanced Advantage Fund?",
-      "What is the benchmark of Kotak Flexi Cap Fund?",
-      "How do I download my capital gains statement for mutual funds?",
-    ],
-  },
-  SBI: {
-    label: "SBI",
-    chipFund: "SBI Bluechip Fund",
-    examples: [
-      "What is the expense ratio of SBI Bluechip Fund direct plan?",
-      "What is the lock-in period for SBI Long Term Equity Fund?",
-      "What is the exit load of SBI Flexicap Fund?",
-      "What is the minimum SIP for SBI Balanced Advantage Fund?",
-      "What is the benchmark of SBI Bluechip Fund?",
-      "How do I download my capital gains statement for mutual funds?",
-    ],
-  },
-  Nippon: {
-    label: "Nippon",
-    chipFund: "Nippon India Large Cap Fund",
-    examples: [
-      "What is the expense ratio of Nippon India Large Cap Fund direct plan?",
-      "What is the lock-in period for Nippon India Tax Saver ELSS Fund?",
-      "What is the exit load of Nippon India Flexi Cap Fund?",
-      "What is the minimum SIP for Nippon India Balanced Advantage Fund?",
-      "What is the benchmark of Nippon India Large Cap Fund?",
-      "How do I download my capital gains statement for mutual funds?",
+      "What is the benchmark index of HDFC Balanced Advantage Fund?",
+      "What is the riskometer level of HDFC Balanced Advantage Fund?",
+      "What is the exit load of HDFC Balanced Advantage Fund?",
+      "What is the minimum SIP amount for HDFC Balanced Advantage Fund?",
+      "Is there a lock-in period for HDFC Balanced Advantage Fund?",
+      "What is the expense ratio of HDFC Balanced Advantage Fund direct plan?",
     ],
   },
 };
 
-const AMC_KEYS = ["ALL", "HDFC", "Kotak", "SBI", "Nippon"];
+const SCHEME_KEYS = ["ALL", "TOP100", "FLEXICAP", "ELSS", "BAF"];
 
 function timeNow() {
   return new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
@@ -172,7 +172,7 @@ function AnswerMsg({ msg }) {
           <React.Fragment>
             <div className="ans-body">
               {msg.body ||
-                "I couldn't find this in the approved AMC, AMFI or SEBI sources. Try rephrasing, or ask about expense ratio, exit load, benchmark, riskometer, lock-in or minimum SIP for a supported scheme."}
+                "I couldn't find this in the approved HDFC, AMFI or SEBI sources. Try rephrasing, or ask about expense ratio, exit load, benchmark, riskometer, lock-in or minimum SIP for a supported HDFC scheme."}
             </div>
             {msg.source && <SourceCard source={msg.source} lastUpdated={msg.last_updated} />}
           </React.Fragment>
@@ -194,36 +194,36 @@ function Typing() {
   );
 }
 
-function AmcSelector({ selected, onSelect }) {
+function SchemeSelector({ selected, onSelect }) {
   return (
     <div className="amc-selector">
-      {AMC_KEYS.map((key) => (
+      {SCHEME_KEYS.map((key) => (
         <button
           key={key}
           className={"amc-pill" + (selected === key ? " amc-pill-active" : "")}
           onClick={() => onSelect(key)}
         >
-          {AMC_DATA[key].label}
+          {SCHEME_DATA[key].label}
         </button>
       ))}
     </div>
   );
 }
 
-function EmptyState({ onPick, selectedAmc }) {
-  const amc = AMC_DATA[selectedAmc] || AMC_DATA.ALL;
+function EmptyState({ onPick, selectedScheme }) {
+  const scheme = SCHEME_DATA[selectedScheme] || SCHEME_DATA.ALL;
   return (
     <div className="empty-state">
       <div className="empty-logo">
         <img src="assets/groww-logo.png" alt="" width={48} height={48} />
       </div>
-      <h2 className="empty-title">Ask anything about mutual funds</h2>
+      <h2 className="empty-title">Ask anything about HDFC Mutual Funds</h2>
       <p className="empty-sub">
         Factual answers on expense ratios, exit loads, benchmarks, riskometers, lock-ins and SIPs —
-        every one backed by an official AMC, AMFI or SEBI source.
+        backed by official HDFC, AMFI and SEBI sources.
       </p>
       <div className="empty-examples">
-        {amc.examples.map((q, i) => (
+        {scheme.examples.map((q, i) => (
           <button className="empty-ex" key={i} onClick={() => onPick(q)}>
             <span>{q}</span>
             <I.Arrow s={16} c="var(--green)" />
@@ -238,7 +238,7 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
   const [messages, setMessages] = React.useState([]);
   const [input, setInput] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [selectedAmc, setSelectedAmc] = React.useState("ALL");
+  const [selectedScheme, setSelectedScheme] = React.useState("ALL");
   const scrollRef = React.useRef(null);
   const seededRef = React.useRef(false);
 
@@ -265,8 +265,7 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
         {
           role: "bot",
           type: "error",
-          body:
-            "Unable to reach the FAQ assistant backend. Start the API with: uvicorn api:app --reload --port 8000",
+          body: "Unable to reach the FAQ assistant backend. Start the API with: python3 -m uvicorn api:app --reload --port 8002",
         },
       ]);
     } finally {
@@ -282,10 +281,10 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
   }, [seedQuestion, submit]);
 
   const handleChip = (chip) => {
-    const amc = AMC_DATA[selectedAmc] || AMC_DATA.ALL;
+    const scheme = SCHEME_DATA[selectedScheme] || SCHEME_DATA.ALL;
     const template = CHIP_TEMPLATES[chip];
     if (template) {
-      setInput(template(amc.chipFund));
+      setInput(template(scheme.chipFund));
     }
   };
 
@@ -304,7 +303,7 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
 
       <div className="chat-banner">
         <FactsBadge />
-        <AmcSelector selected={selectedAmc} onSelect={setSelectedAmc} />
+        <SchemeSelector selected={selectedScheme} onSelect={setSelectedScheme} />
         <div className="chips-row">
           {CHIPS.map((c, i) => (
             <button className="chip" key={i} onClick={() => handleChip(c)}>{c}</button>
@@ -315,7 +314,7 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
       <div className="chat-scroll" ref={scrollRef}>
         <div className="chat-inner">
           {messages.length === 0 && !busy && (
-            <EmptyState onPick={submit} selectedAmc={selectedAmc} />
+            <EmptyState onPick={submit} selectedScheme={selectedScheme} />
           )}
           {messages.map((m, i) =>
             m.role === "user" ? (
@@ -332,7 +331,7 @@ function Chat({ seedQuestion, onNewChat, onHome, theme, onToggleTheme }) {
         <div className="chat-input">
           <input
             type="text"
-            placeholder="Ask a mutual fund question…"
+            placeholder="Ask about any HDFC Mutual Fund scheme…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && submit(input)}

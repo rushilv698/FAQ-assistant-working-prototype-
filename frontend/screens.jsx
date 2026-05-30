@@ -10,9 +10,9 @@ function Landing({ onAsk, onLogin, onExamples, onHome, theme, onToggleTheme }) {
 
   const popular = [
     "What is the expense ratio of HDFC Top 100 Fund direct plan?",
-    "What is the lock-in period for SBI Long Term Equity Fund?",
-    "What is the exit load of Kotak Flexi Cap Fund?",
-    "What is the minimum SIP for Nippon India Large Cap Fund?",
+    "What is the benchmark index of HDFC Flexi Cap Fund?",
+    "What is the lock-in period for HDFC ELSS Tax Saver?",
+    "What is the riskometer level of HDFC Balanced Advantage Fund?",
     "How do I download my capital gains statement for mutual funds?",
   ];
 
@@ -35,8 +35,9 @@ function Landing({ onAsk, onLogin, onExamples, onHome, theme, onToggleTheme }) {
         </h1>
 
         <p className="hero-sub">
-          Ask about expense ratios, exit loads, SIP minimums, lock-ins, riskometers and benchmarks.
-          Every answer comes from official AMC, AMFI or SEBI sources — with a citation.
+          Ask about expense ratios, exit loads, SIP minimums, lock-ins, riskometers and benchmarks
+          for HDFC Mutual Fund schemes.
+          Every answer comes from official HDFC, AMFI or SEBI sources — with a citation.
         </p>
 
         <div className="hero-cta">

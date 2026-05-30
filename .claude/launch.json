@@ -4,7 +4,7 @@
     {
       "name": "faq-api",
       "runtimeExecutable": "/Library/Frameworks/Python.framework/Versions/3.13/bin/python3",
-      "runtimeArgs": ["-m", "uvicorn", "api:app", "--reload", "--port", "8002"],
+      "runtimeArgs": ["-m", "uvicorn", "api:app", "--port", "8002"],
       "port": 8002
     }
   ]
